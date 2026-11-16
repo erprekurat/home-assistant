@@ -1,0 +1,52 @@
+﻿*.exe
+*.onnx
+*.log
+*.bak
+*.db
+*.sqlite
+*.mp4
+*.mkv
+*.avi
+*.mov
+*.h264
+*.h265
+*.jpg
+*.jpeg
+*.png
+*.ico
+**/model_cache/
+**/recordings/
+**/clips/
+**/snapshots/
+**/cache/
+**/tokenizer.json
+
+# Sekrety i dane uwierzytelniania
+**/.jwt_secret
+**/.exports
+**/.env
+**/.env.*
+**/*secret*
+**/*token*
+klima/tuya_key.py
+
+# Konfiguracje wymagające sprawdzenia
+ariston.json
+energia.json
+klima.json
+klima-timer.json
+rolety.json
+rolety_new1.json
+go2rtc.yaml
+frigate/config/config.yml
+frigate/config/go2rtc_homekit.yml
+
+# Pliki tymczasowe
+**/*.lock
+**/.runtime_state*
+**/.search_stats*
+**/.vacuum
+
+# Kod aplikacji do sprawdzenia przed publikacją
+/www/
+/klima/ariston.go

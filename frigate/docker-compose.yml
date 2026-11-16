@@ -1,0 +1,31 @@
+# Frigate – uruchamiany przez instalator (docker compose up -d)
+services:
+  frigate:
+    container_name: frigate
+    image: ghcr.io/blakeblackshear/frigate:0.18.2-tensorrt
+    restart: unless-stopped
+    shm_size: "256mb"
+    stop_grace_period: 30s
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - TZ=Europe/Warsaw
+    volumes:
+      - ./config:/config
+      - frigate_db:/db
+      - ${FRIGATE_MEDIA:-D:/Frigate}:/media/frigate
+      - type: tmpfs
+        target: /tmp/cache
+        tmpfs:
+          size: 1000000000
+    ports:
+      - "127.0.0.1:5000:5000"   # panel Frigate tylko z tego PC
+volumes:
+  frigate_db:
