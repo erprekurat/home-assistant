@@ -73,6 +73,17 @@
     cursor: default; display: flex; align-items: center; justify-content: center;
     color: var(--muted); font-size: var(--fs-1); border: 1px dashed var(--line); background: transparent;
   }
+  .demo-feed { width: 100%; height: 100%; display: block; object-fit: cover; }
+  .demo-tag { position: absolute; right: 14px; top: 14px; padding: 5px 9px; border-radius: 999px;
+    background: rgb(12 12 13 / .72); color: #d7ff47; font-size: var(--fs-1); font-weight: 600;
+    letter-spacing: .04em; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+  .demo-note { position: fixed; right: 18px; bottom: 18px; z-index: 8; padding: 9px 13px; border-radius: 999px;
+    background: rgb(24 25 27 / .88); border: 1px solid var(--line); color: var(--muted); font-size: var(--fs-1);
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+  .demo-note b { color: var(--text); }
+  .demo-avatar { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+    background: linear-gradient(145deg, #39404b, #17191d); color: #d7ff47; font-weight: 700; }
+  body.demo .test-mode { display: none; }
   cam-view, cam-view video { display: block; width: 100%; height: 100%; }
   cam-view video { object-fit: fill; pointer-events: none; background: #000; }   /* zawsze 16:9 */
   /* nazwa kamery: ciemna pigułka w lewym górnym rogu (bez przyciemniającego gradientu na obrazie) */
@@ -1092,6 +1103,20 @@
 <script type="module">
 import {VideoRTC} from './video-rtc.js';
 
+const DEMO = location.hostname.endsWith('github.io') || new URLSearchParams(location.search).has('demo');
+if (DEMO) {
+  document.body.classList.add('demo');
+  const note = document.createElement('div'); note.className = 'demo-note';
+  note.innerHTML = '<b>Demo online</b> · dane przykładowe'; document.body.append(note);
+}
+const demoSvg = (kind, label) => {
+  const person = kind === 'person' ? '<circle cx="490" cy="145" r="24" fill="#202329"/><path d="M450 300q8-115 40-115t40 115" fill="#202329"/>' : '';
+  const car = kind === 'car' ? '<path d="M350 265h225l-30-60H405l-55 60z" fill="#25282e"/><rect x="325" y="255" width="275" height="65" rx="22" fill="#1b1d22"/><circle cx="390" cy="320" r="24" fill="#08090a"/><circle cx="535" cy="320" r="24" fill="#08090a"/>' : '';
+  const pet = kind === 'animal' ? '<ellipse cx="490" cy="270" rx="58" ry="30" fill="#24272c"/><circle cx="545" cy="245" r="26" fill="#24272c"/><path d="M530 225l8-28 15 25M558 225l15-25 2 32" fill="#24272c"/>' : '';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360"><defs><linearGradient id="s" x2="0" y2="1"><stop stop-color="#414b55"/><stop offset="1" stop-color="#15181c"/></linearGradient><linearGradient id="g"><stop stop-color="#31383d"/><stop offset="1" stop-color="#202529"/></linearGradient></defs><rect width="640" height="360" fill="url(#s)"/><rect y="205" width="640" height="155" fill="url(#g)"/><path d="M0 235L205 105l180 130z" fill="#242a30"/><rect x="90" y="205" width="250" height="155" fill="#1c2024"/><rect x="120" y="245" width="105" height="115" fill="#111315"/><path d="M0 330L640 220v140H0z" fill="#282d31"/>${person}${car}${pet}<text x="24" y="334" fill="#aeb5bb" font-family="system-ui" font-size="16">${label}</text></svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+};
+
 /* ===== domyślne kamery: kanały rejestratora 1–8 ===== */
 const DEFAULT_CAMERAS = [
   {id: 'kam1', name: 'Podjazd'},
@@ -1178,6 +1203,14 @@ function buildGrid() {
       continue;
     }
     n++;
+    if (DEMO) {
+      const kinds = ['car', 'person', '', 'car', '', 'animal', ''];
+      tile.innerHTML = `<img class="demo-feed" alt="Przykładowy podgląd"><span class="demo-tag">DEMO</span><div class="label"><span class="dot live"></span><span></span><span class="key"></span></div>`;
+      tile.querySelector('img').src = demoSvg(kinds[(n - 1) % kinds.length], cam.name);
+      tile.querySelector('.label span:nth-child(2)').textContent = cam.name;
+      tile.querySelector('.key').textContent = n <= 9 ? n : '';
+      grid.append(tile); continue;
+    }
     const v = document.createElement('cam-view');
     v.mode = 'webrtc,mse,hls';
     v.media = 'video';
@@ -2232,7 +2265,7 @@ const AC_FAN_SHORT = ['Cichy', 'Niski', 'Śr. niski', 'Średni', 'Śr. wysoki', 
 const AC_TIMERS = [[30, '30 min'], [60, '1 h'], [120, '2 h'], [240, '4 h'], [480, '8 h']];
 let acWake = null, acModeFx = null, acPrevMode = null, acTimer = 0, acData = null, acPend = {}, acQuick = 0, acDrag = null, acPrevOn = null;
 /* tryb testowy (przycisk w prawym dolnym rogu): polecenia nie idą do urządzeń, tylko zmieniają stan w apce */
-const TEST = {on: !!store.get('testMode', false)};
+const TEST = {on: DEMO || !!store.get('testMode', false)};
 let acSim = {}, acSimTimer;                              // nadpisania stanu klimatyzatora w trybie testowym
 const acT = v => v == null ? null : v > 60 ? v / 10 : v;            // 245 → 24,5
 async function acFetch(path, body) {
@@ -2829,6 +2862,12 @@ function blRender0(b) {
   }
 }
 async function blRead(b) {
+  if (DEMO) {
+    const sample = {salon: [72, 55], kuchnia: [48, 35], sypialnia: [18, 15], gabinet: [86, 70]};
+    const [level, louvers] = sample[b.id] || [60, 50];
+    b.level = b.sim?.level ?? level; b.louvers = b.sim?.louvers ?? louvers;
+    b.unknown = false; b.err = ''; b.reading = false; b.moving = false; blRender(b); return;
+  }
   b.reading = true;
   try { const j = await blFetch(b.id + '/level'); b.level = blVal(j.level); b.louvers = blVal(j.louvers); b.unknown = b.level == null; b.err = ''; }
   catch (e) { b.err = e.message; }
@@ -2991,8 +3030,11 @@ function blVert(kind, label, onSet) {
 async function blOpen() {
   if (!blinds.length) {
     blList.innerHTML = '<div class="bl-card"><span class="st">Wczytuję…</span></div>';
-    let list = [];
-    try { list = await (await fetch('fox', {cache: 'no-store'})).json(); } catch {}
+    let list = DEMO ? [
+      {id: 'salon', name: 'Salon'}, {id: 'kuchnia', name: 'Kuchnia'},
+      {id: 'sypialnia', name: 'Sypialnia'}, {id: 'gabinet', name: 'Gabinet'},
+    ] : [];
+    if (!DEMO) try { list = await (await fetch('fox', {cache: 'no-store'})).json(); } catch {}
     if (!Array.isArray(list) || !list.length) { blList.innerHTML = '<div class="bl-card"><span class="st err">Brak rolet. Uruchom ponownie ZAINSTALUJ.bat (nowa wersja kamery-proxy) i sprawdź plik rolety.json.</span></div>'; return; }
     blList.replaceChildren();
     const all = document.createElement('div'); all.className = 'bl-card all';
@@ -3396,7 +3438,8 @@ function evCard(e, withDate = false) {   // na liście datę podaje nagłówek d
   l2.textContent = `${LABEL[e.label] || e.label} ${score(e)}%${more.length ? ' + ' + more.join(', ') : ''} · ${camName(e.camera)}`;
   if (e.who) l2.textContent = `${e.who} · ` + l2.textContent;
   if (e.plate) { const pl = document.createElement('span'); pl.className = 'plate'; pl.textContent = e.plate; l2.prepend(pl, ' '); pl.style.marginLeft = '0'; }
-  c.addEventListener('click', () => { if (evCur?.id !== e.id) openEvent(e); });
+  if (!DEMO) c.addEventListener('click', () => { if (evCur?.id !== e.id) openEvent(e); });
+  else c.style.cursor = 'default';
   return c;
 }
 
@@ -3451,6 +3494,16 @@ function renderEvents(byRelevance = evSearchSem && !!evSearchRes) {
 }
 
 async function loadEvents() {
+  if (DEMO) {
+    const now = Date.now() / 1000;
+    events = [
+      {id:'demo-1', camera:'podjazd', start_time:now-420, end_time:now-403, label:'car', labels:['car'], score:.94, plate:'WX 4821K', thumb:demoSvg('car','Podjazd')},
+      {id:'demo-2', camera:'wejscie', start_time:now-1380, end_time:now-1367, label:'person', labels:['person'], score:.97, who:'Domownik', thumb:demoSvg('person','Wejście')},
+      {id:'demo-3', camera:'taras', start_time:now-2850, end_time:now-2829, label:'dog', labels:['dog'], score:.89, thumb:demoSvg('animal','Taras')},
+      {id:'demo-4', camera:'podworko', start_time:now-6900, end_time:now-6872, label:'person', labels:['person','bicycle'], score:.91, thumb:demoSvg('person','Podwórko')},
+    ];
+    renderEvents(); return;
+  }
   try {
     const after = Date.now() / 1000 - 14 * 86400;
     // przegląd (review) = okres ruchu obiektu; zaparkowane auto nie wydłuża go w nieskończoność
@@ -3548,7 +3601,17 @@ function knInput(placeholder, value = '') {
   i.setAttribute('list', 'knNameList'); return i;
 }
 function knBtn(txt, primary, fn) { const b = document.createElement('button'); b.className = 'btn' + (primary ? ' primary' : ''); b.type = 'button'; b.textContent = txt; b.onclick = fn; return b; }
+function loadKnownDemo() {
+  knPeople.innerHTML = `
+    <div class="kn-person"><div class="demo-avatar">R</div><div><b>Radek</b><span>8 zdjęć wzorcowych</span></div></div>
+    <div class="kn-person"><div class="demo-avatar">D</div><div><b>Domownik</b><span>5 zdjęć wzorcowych</span></div></div>`;
+  const card = (src, title, sub, car = false) => `<div class="evc kn-card${car ? ' car' : ''}" style="cursor:default"><div class="img"><img alt="" src="${src}"></div><div class="cap"><div><b>${title}</b></div><div>${sub}</div></div></div>`;
+  knFaces.innerHTML = card(demoSvg('person', 'Wejście'), 'Dziś 01:32', 'Podobna do: Domownik (96%)') + card(demoSvg('person', 'Podjazd'), 'Wczoraj 18:14', 'Nieznana osoba');
+  knPlates.innerHTML = card(demoSvg('car', 'Podjazd'), '<span class="plate" style="margin-left:0">WX 4821K</span> Auto domowe', '12× · ostatnio dzisiaj 01:40 · Podjazd', true)
+    + card(demoSvg('car', 'Podjazd'), '<span class="plate" style="margin-left:0">WA 7392P</span> Gość', '3× · ostatnio wczoraj 20:06 · Podjazd', true);
+}
 async function loadKnown() {
+  if (DEMO) { loadKnownDemo(); return; }
   // --- osoby ---
   let faces = {};
   try { faces = await frApi('faces'); }
