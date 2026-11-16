@@ -3544,6 +3544,35 @@ async function loadEvents() {
 }
 
 let curTab = null;
+// Statyczne dane prezentacyjne są używane wyłącznie w publicznym demo GitHub Pages.
+function loadHomeDemo() {
+  heatSec.hidden = false;
+  heatSub.textContent = 'Pompa ciepła Ariston · dane demonstracyjne';
+  heatBox.innerHTML = `<div class="ht-card ht-main ht-pump on">
+    <div class="ht-hd"><div class="lab">Pompa ciepła</div><span class="ht-badge on"><i></i>Grzeje dom</span></div>
+    <div class="ht-boxes three ht-temps">
+      <div class="ht-box ht-tbox"><div class="ht-blab"><span>W domu</span></div><div class="ht-big">22,4°</div><div class="ht-meta"><span>Zadane</span><b>22,0°</b></div></div>
+      <div class="ht-box ht-tbox"><div class="ht-blab"><span>Ciepła woda</span></div><div class="ht-big">48,7°</div><div class="ht-meta"><span>Zadane</span><b>50,0°</b></div></div>
+      <div class="ht-box ht-tbox"><div class="ht-blab"><span>Na zewnątrz</span></div><div class="ht-big">6,8°</div><div class="ht-meta"><span>Zasilanie</span><b>34,2°</b></div></div>
+    </div>
+    <div class="ht-boxes two"><div class="ht-box ht-ibox"><div><span>Ciśnienie instalacji</span><b>1,6 bar</b></div></div><div class="ht-box ht-ibox"><div><span>Zużycie dzisiaj</span><b>8,4 kWh</b></div></div></div>
+  </div>`;
+  acSec.hidden = false;
+  acSub.textContent = 'Rotenso · dane demonstracyjne';
+  acBox.innerHTML = `<div class="ht-card ac-main on" style="--mcol:#55b8ff">
+    <div class="ht-hd"><div class="lab">Klimatyzator</div><span class="ht-badge on"><i></i>Włączony</span></div>
+    <div class="ht-boxes three ac-boxes ht-temps">
+      <div class="ht-box ht-tbox"><div class="ht-blab"><span>W pokoju</span></div><div class="ht-big">24,1°</div></div>
+      <div class="ht-box ht-tbox"><div class="ht-blab"><span>Ustawiona</span></div><div class="ht-big">22,0°</div></div>
+      <div class="ht-box ht-tbox"><div class="ht-blab"><span>Wilgotność</span></div><div class="ht-big">46<small>%</small></div></div>
+    </div>
+    <div class="ht-kvs"><span class="pill">Tryb <b>Chłodzenie</b></span><span class="pill">Nawiew <b>Średni</b></span><span class="pill">Eco</span></div>
+  </div>
+  <div class="ht-card"><div class="ht-hd"><div class="lab">Kierunek nawiewu</div><span class="pill">Auto</span></div>
+    <div class="ht-boxes two"><div class="ht-box ht-ibox"><div><span>Pionowo</span><b>Ukośnie w dół</b></div></div><div class="ht-box ht-ibox"><div><span>Poziomo</span><b>Na wprost</b></div></div></div>
+    <div class="ht-meta"><span>Timer</span><b>Wyłączy się za 1 h 24 min</b></div>
+  </div>`;
+}
 // płynne przejście (View Transitions); bez wsparcia albo przy ograniczonych animacjach – od razu
 let vtSeq = 0;
 function vt(kind, fn) {
@@ -3573,8 +3602,9 @@ function setTab(t) {
   else { document.documentElement.dataset.dir = order.indexOf(t) > order.indexOf(curTab) ? 'fwd' : 'back'; vt('tab', show); }
   curTab = t; document.body.dataset.tab = t;   // m.in. chowa w zakładce Dom ustawienia dotyczące tylko kamer
   clearInterval(blTimer); blLive(t === 'bl'); clearInterval(heatTimer); clearInterval(acTimer);
-  if (t === 'bl') { acLoad(); acTimer = setInterval(() => { if (!document.hidden) acLoad(); }, 5000); }
-  if (t === 'bl') { heatLoad(); heatTimer = setInterval(() => { if (!document.hidden) heatLoad(); }, 120000); }
+  if (t === 'bl' && DEMO) loadHomeDemo();
+  if (t === 'bl' && !DEMO) { acLoad(); acTimer = setInterval(() => { if (!document.hidden) acLoad(); }, 5000); }
+  if (t === 'bl' && !DEMO) { heatLoad(); heatTimer = setInterval(() => { if (!document.hidden) heatLoad(); }, 120000); }
   if (t === 'bl') { blOpen(); blTimer = setInterval(() => { if (!document.hidden) blinds.forEach(b => { if (!b.moving && !b.reading && !b.slH.dragging && !b.slL.dragging) blRead(b); }); }, 12000); }
   if (t === 'kn') loadKnown();
   store.set('tab', t);
