@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kontrolki – prototyp</title>
+<style>
+  :root {
+    --mono: "Cascadia Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
+    --glow: #ff6a2b;
+    /* drobny szum + rzadkie ciemne cętki – matowy, „betonowy” materiał */
+    --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    --speck: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='s'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -9 6'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23s)'/%3E%3C/svg%3E");
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; color: #d9d9d9; font-family: system-ui, sans-serif; padding: 56px 24px 64px;
+    background: radial-gradient(90% 70% at 50% 25%, #2a2b2d, #161718 75%); }
+  body::before { content: ''; position: fixed; inset: 0; pointer-events: none; background: var(--grain), var(--speck); opacity: .22; mix-blend-mode: overlay; }
+  h1 { font: 500 13px var(--mono); letter-spacing: .3em; text-transform: uppercase; color: #8b8c8f; text-align: center; margin: 0 0 48px; }
+  .set { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 56px 64px; max-width: 1100px; margin: 0 auto; }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .cap-t { font: 12px var(--mono); letter-spacing: .22em; text-transform: uppercase; color: #a6a7aa; }
+  .val { font: 13px var(--mono); letter-spacing: .12em; color: var(--glow); text-shadow: 0 0 8px color-mix(in srgb, var(--glow) 60%, transparent); min-height: 1em; }
+
+  /* ===== gałka ze szczotkowanego aluminium ===== */
+  .knob { position: relative; width: var(--s, 200px); aspect-ratio: 1; touch-action: none; cursor: grab; outline: none; isolation: isolate; }
+  .knob:active { cursor: grabbing; }
+  .knob svg.sc { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .sc .d { fill: #5b5c60; } .sc .d.on { fill: var(--glow); filter: drop-shadow(0 0 3px var(--glow)); }
+  .sc text { fill: #8f9094; font: 12px var(--mono); text-anchor: middle; letter-spacing: .05em; }
+  /* wnęka: miękko wcięta w materiał */
+  .well { position: absolute; inset: 15%; border-radius: 50%; background: #0f1011;
+    box-shadow: inset 0 8px 16px rgb(0 0 0 / .85), inset 0 -2px 3px rgb(255 255 255 / .06), 0 1px 1px rgb(255 255 255 / .07), 0 -1px 2px rgb(0 0 0 / .6); }
+  /* korpus gałki: ciemna, gładka ścianka; cień rzucany w prawo w dół */
+  .body { position: absolute; inset: 19%; border-radius: 50%;
+    background: radial-gradient(circle at 50% 40%, #2a2b2e 55%, #141516 100%);
+    box-shadow: 6px 18px 26px -6px rgb(0 0 0 / .85), 2px 6px 8px rgb(0 0 0 / .6), inset 0 1px 1px rgb(255 255 255 / .14), inset 0 -2px 4px rgb(0 0 0 / .6); }
+  /* wierzch: szczotkowane aluminium – odblaski stoją w miejscu i tylko lekko „płyną” przy obracaniu (--lo) */
+  .top { position: absolute; inset: 22%; border-radius: 50%; overflow: hidden;
+    background:
+      repeating-radial-gradient(circle at 50% 50%, rgb(255 255 255 / .05) 0 1px, rgb(0 0 0 / .05) 1px 2px),
+      conic-gradient(from calc(-20deg + var(--lo, 0deg)), #141517 0deg, #3c3e42 22deg, #6e7075 32deg, #2a2b2e 48deg, #121314 110deg, #2c2e31 160deg, #8f9196 188deg, #3a3c40 206deg, #141517 250deg, #1d1e21 300deg, #5a5c61 328deg, #26282b 342deg, #141517 360deg);
+    box-shadow: inset 0 1px 1px rgb(255 255 255 / .5), inset 0 -1px 2px rgb(0 0 0 / .6), 0 0 0 1px rgb(0 0 0 / .55); }
+  .top::before { content: ''; position: absolute; inset: 0; border-radius: 50%;   /* miękkie światło z lewej góry na całym wierzchu */
+    background: radial-gradient(120% 90% at 30% 15%, rgb(255 255 255 / .1), transparent 55%), radial-gradient(90% 70% at 75% 95%, rgb(0 0 0 / .4), transparent 60%); }
+  .top::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--grain); opacity: .25; mix-blend-mode: overlay; }
+  .dimple { position: absolute; inset: 46%; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #6e7075, #1e1f22);
+    box-shadow: inset 0 1px 2px rgb(0 0 0 / .55), 0 1px 0 rgb(255 255 255 / .25); opacity: .55; }
+  .rot { position: absolute; inset: 22%; border-radius: 50%; transform: rotate(var(--r, 0deg)); transition: transform .16s; }
+  .knob.drag .rot { transition: none; }
+  .mark { position: absolute; left: 50%; top: 7%; width: 3px; height: 20%; margin-left: -1.5px; border-radius: 2px;   /* wygrawerowana kreska */
+    background: #111; box-shadow: 0 1px 0 rgb(255 255 255 / .45), inset 0 1px 1px rgb(0 0 0 / .6); }
+  .knob.lit .mark { background: var(--glow); box-shadow: 0 0 6px var(--glow), 0 1px 0 rgb(255 255 255 / .35); }
+
+  /* ===== klawisze: ciemne, matowe, z miękkim fazem ===== */
+  .keys { display: flex; gap: 12px; padding: 12px; border-radius: 22px; background: #121314;
+    box-shadow: inset 0 3px 8px rgb(0 0 0 / .8), 0 1px 0 rgb(255 255 255 / .06), 0 -1px 1px rgb(0 0 0 / .5); }
+  .keys.v { flex-direction: column; }
+  .key { position: relative; appearance: none; border: 0; cursor: pointer; width: 92px; height: 92px; border-radius: 16px; color: #b9babd;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font: 11px var(--mono); letter-spacing: .14em; text-transform: uppercase;
+    /* toczone aluminium jak wierzch gałek: koncentryczne kręgi + nieruchome odblaski (conic), w ciemniejszej wersji */
+    background:
+      repeating-radial-gradient(circle at 50% 50%, rgb(255 255 255 / .045) 0 1px, rgb(0 0 0 / .06) 1px 2px),
+      conic-gradient(from -20deg at 50% 50%, #151618 0deg, #2e3033 24deg, #4c4e53 32deg, #222326 50deg, #111213 115deg, #222326 165deg, #5f6166 188deg, #2c2e31 205deg, #131415 255deg, #1b1c1e 305deg, #404246 330deg, #1e1f22 344deg, #151618 360deg);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / .28), inset 1px 0 0 rgb(255 255 255 / .06), inset 0 -2px 2px rgb(0 0 0 / .5), 0 6px 0 #0c0c0d, 0 10px 16px rgb(0 0 0 / .55);
+    transition: transform .08s, box-shadow .08s, color .2s, filter .2s; -webkit-tap-highlight-color: transparent; }
+  .key::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;   /* metaliczny połysk z lewej góry */
+    background: radial-gradient(120% 90% at 30% 10%, rgb(255 255 255 / .14), transparent 55%), radial-gradient(90% 70% at 75% 100%, rgb(0 0 0 / .3), transparent 60%); }
+  .key::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: var(--grain); opacity: .12; mix-blend-mode: overlay; pointer-events: none; }
+  .key > * { position: relative; z-index: 1; }
+  .key:hover { filter: brightness(1.08); }
+  .key svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .key:hover { color: #e6e6e6; }
+  .key:active, .key.on { transform: translateY(4px); box-shadow: inset 0 1px 0 rgb(255 255 255 / .14), inset 0 -1px 1px rgb(0 0 0 / .4), 0 2px 0 #0c0c0d, 0 4px 8px rgb(0 0 0 / .5); }
+  .key.on { background:
+      repeating-radial-gradient(circle at 50% 50%, rgb(255 255 255 / .035) 0 1px, rgb(0 0 0 / .07) 1px 2px),
+      conic-gradient(from -20deg at 50% 50%, #111213 0deg, #25272a 24deg, #3c3e42 32deg, #1b1c1e 50deg, #0d0e0f 115deg, #1b1c1e 165deg, #4a4c50 188deg, #232528 205deg, #0f1011 255deg, #161718 305deg, #323438 330deg, #18191b 344deg, #111213 360deg); }
+  .key.on { color: var(--glow); }
+  .key.on svg { filter: drop-shadow(0 0 4px var(--glow)) drop-shadow(0 0 12px color-mix(in srgb, var(--glow) 55%, transparent)); }
+  .key.on span { text-shadow: 0 0 8px var(--glow); }
+  .key.sm { width: 92px; height: 46px; }
+  .key.wide { width: 140px; }
+  .led { position: absolute; top: 10px; right: 10px; width: 5px; height: 5px; border-radius: 50%; background: #3a3b3e; box-shadow: inset 0 1px 1px rgb(0 0 0 / .6); }
+  .key.on .led { background: var(--glow); box-shadow: 0 0 6px var(--glow); }
+
+  /* ===== suwak lameli: szczelina + aluminiowy suwak ===== */
+  .fader { position: relative; width: 92px; height: 300px; border-radius: 22px; background: #121314; touch-action: none; cursor: ns-resize; outline: none;
+    box-shadow: inset 0 3px 8px rgb(0 0 0 / .8), 0 1px 0 rgb(255 255 255 / .06); }
+  .fader .slot { position: absolute; left: 50%; top: 26px; bottom: 26px; width: 8px; margin-left: -4px; border-radius: 4px; background: #070708; box-shadow: inset 0 2px 3px #000, 0 1px 0 rgb(255 255 255 / .06); }
+  .fader .tk { position: absolute; left: 16px; width: 12px; height: 2px; border-radius: 1px; background: #4a4b4f; }
+  .fader .tk.r { left: auto; right: 16px; }
+  /* szczelina świeci delikatnie od dołu do uchwytu – jakby światło wydobywało się z otworu */
+  .fader .glow { position: absolute; left: 1px; right: 1px; bottom: 1px; border-radius: 3px; transition: height .15s;
+    background: linear-gradient(to top, color-mix(in srgb, var(--glow) 55%, transparent), color-mix(in srgb, var(--glow) 18%, transparent));
+    box-shadow: 0 0 10px color-mix(in srgb, var(--glow) 45%, transparent), 0 0 22px color-mix(in srgb, var(--glow) 20%, transparent); }
+  .fader.drag .glow { transition: none; }
+  /* uchwyt: okrągła gałeczka z toczonego aluminium */
+  .fader .fcap { position: absolute; left: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%; transition: top .15s;
+    background: repeating-radial-gradient(circle at 50% 50%, rgb(255 255 255 / .05) 0 1px, rgb(0 0 0 / .05) 1px 2px),
+      conic-gradient(from -20deg, #141517 0deg, #3c3e42 22deg, #6e7075 32deg, #2a2b2e 48deg, #121314 110deg, #2c2e31 160deg, #8f9196 188deg, #3a3c40 206deg, #141517 250deg, #1d1e21 300deg, #5a5c61 328deg, #26282b 342deg, #141517 360deg);
+    box-shadow: 4px 12px 16px -4px rgb(0 0 0 / .85), 1px 3px 4px rgb(0 0 0 / .6), inset 0 1px 1px rgb(255 255 255 / .55), inset 0 -1px 2px rgb(0 0 0 / .6), 0 0 0 1px rgb(0 0 0 / .55); }
+  .fader .fcap::before { content: ''; position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(120% 90% at 30% 15%, rgb(255 255 255 / .1), transparent 55%), radial-gradient(90% 70% at 75% 95%, rgb(0 0 0 / .4), transparent 60%); }
+  .fader .fcap::after { content: ''; position: absolute; inset: 40%; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #6e7075, #1e1f22); opacity: .5;
+    box-shadow: inset 0 1px 2px rgb(0 0 0 / .55), 0 1px 0 rgb(255 255 255 / .25); }  .fader.drag .fcap { transition: none; }
+
+  .note { text-align: center; color: #6c6d70; font-size: 12px; margin-top: 56px; }
+  @media (max-width: 600px) { .key { width: 72px; height: 72px; } .key.wide { width: 110px; } }
+</style>
+</head>
+<body>
+<h1>Kontrolki</h1>
+<div class="set">
+  <div class="cell"><div class="knob" id="kT" tabindex="0" role="slider" aria-label="Temperatura"></div><div class="cap-t">Temperatura</div><div class="val" id="vT"></div></div>
+  <div class="cell"><div class="knob" id="kF" tabindex="0" role="slider" aria-label="Nawiew"></div><div class="cap-t">Nawiew</div><div class="val" id="vF"></div></div>
+  <div class="cell"><div class="knob" id="kS" style="--s: 120px" tabindex="0" role="slider" aria-label="Mała gałka"></div><div class="cap-t">Mała gałka</div><div class="val" id="vS"></div></div>
+
+  <div class="cell"><div class="keys" id="modes"></div><div class="cap-t">Tryby i włącznik</div></div>
+
+  <div class="cell"><div style="display:flex; gap:20px">
+      <div class="keys v" id="blinds">
+        <button class="key" data-b="up" aria-label="W górę"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
+        <button class="key sm" data-b="stop" aria-label="Stop"><svg viewBox="0 0 24 24" style="width:16px;height:16px"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
+        <button class="key" data-b="down" aria-label="W dół"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+      </div>
+      <div class="fader" id="fader" tabindex="0" role="slider" aria-label="Lamele"><div class="slot"><div class="glow" id="fglow"></div></div><div class="fcap" id="fcap"></div></div>
+    </div><div class="cap-t">Rolety · wszystkie</div><div class="val" id="vB"></div></div>
+
+  <div class="cell"><div class="keys" id="swing">
+      <button class="key wide" data-s="v" title="Wahanie w pionie" aria-label="Wahanie w pionie"><i class="led"></i><svg viewBox="0 0 24 24"><path d="M12 4v16M8 7.5 12 4l4 3.5M8 16.5l4 3.5 4-3.5"/></svg></button>
+      <button class="key wide" data-s="h" title="Wahanie w poziomie" aria-label="Wahanie w poziomie"><i class="led"></i><svg viewBox="0 0 24 24"><path d="M4 12h16M7.5 8 4 12l3.5 4M16.5 8l3.5 4-3.5 4"/></svg></button>
+    </div><div class="cap-t">Wahanie</div></div>
+</div>
+<div class="note">Prototyp – same kontrolki, niepodłączone. Gałki: przeciąganie, kółko myszy albo strzałki.</div>
+
+<script>
+const $ = id => document.getElementById(id);
+/* gałka: 270°, kropki skali, opisy; obrót = kąt kursora wokół środka */
+function knob(el, {n, labels, steps, value, fmt}) {
+  const S = 200, R = 92; let dots = '';
+  for (let i = 0; i < n; i++) { const a = (-135 + 270 * i / (n - 1) - 90) * Math.PI / 180; dots += `<circle class="d" data-i="${i}" cx="${(S / 2 + R * Math.cos(a)).toFixed(1)}" cy="${(S / 2 + R * Math.sin(a)).toFixed(1)}" r="${i === 0 || i === n - 1 ? 2.4 : 1.8}"/>`; }
+  labels.forEach(([t, s]) => { const a = (-135 + 270 * t - 90) * Math.PI / 180; dots += `<text x="${(S / 2 + 112 * Math.cos(a)).toFixed(1)}" y="${(S / 2 + 112 * Math.sin(a) + 4).toFixed(1)}">${s}</text>`; });
+  el.innerHTML = `<svg class="sc" viewBox="0 0 ${S} ${S}">${dots}</svg><div class="well"></div><div class="body"></div><div class="top"></div><div class="rot"><i class="mark"></i></div><div class="dimple"></div>`;
+  let t = value;
+  const show = () => { const deg = -135 + 270 * t; el.style.setProperty('--r', deg + 'deg'); el.style.setProperty('--lo', (deg * .12).toFixed(1) + 'deg');   // odblaski lekko „płyną” przy obracaniu
+    const k = Math.round(t * (n - 1)); el.querySelectorAll('.d').forEach(d => d.classList.toggle('on', +d.dataset.i <= k)); el.classList.add('lit'); fmt(t); };
+  const set = v => { t = Math.round(Math.min(1, Math.max(0, v)) * steps) / steps; show(); };
+  const ang = e => { const r = el.getBoundingClientRect(), a = Math.atan2(e.clientX - (r.left + r.width / 2), -(e.clientY - (r.top + r.height / 2))) * 180 / Math.PI; return a > 135 ? 1 : a < -135 ? 0 : (a + 135) / 270; };
+  el.addEventListener('pointerdown', e => { el.setPointerCapture(e.pointerId); el.classList.add('drag'); set(ang(e)); });
+  el.addEventListener('pointermove', e => { if (el.hasPointerCapture(e.pointerId)) set(ang(e)); });
+  el.addEventListener('pointerup', () => el.classList.remove('drag'));
+  el.addEventListener('wheel', e => { e.preventDefault(); set(t + (e.deltaY < 0 ? 1 : -1) / steps); }, {passive: false});
+  el.addEventListener('keydown', e => { const d = {ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1}[e.key]; if (d) { e.preventDefault(); set(t + d / steps); } });
+  show();
+}
+const FANS = ['Cichy', 'Niski', 'Śr. niski', 'Średni', 'Śr. wysoki', 'Wysoki', 'Turbo'];
+knob($('kT'), {n: 16, labels: [[0, '16'], [.5, '23,5'], [1, '31']], steps: 30, value: 8 / 30, fmt: t => $('vT').textContent = (16 + 15 * t).toFixed(1) + '°C'});
+knob($('kF'), {n: 7, labels: [[0, 'CICHY'], [1, 'TURBO']], steps: 6, value: .5, fmt: t => $('vF').textContent = FANS[Math.round(t * 6)]});
+knob($('kS'), {n: 11, labels: [], steps: 10, value: .3, fmt: t => $('vS').textContent = Math.round(t * 100) + '%'});
+
+/* tryby + włącznik */
+const MODES = [['cold', 'Chłodz.', '<path d="M12 2v20M4.9 6l14.2 12M4.9 18L19.1 6"/><path d="M9 3.5l3 2 3-2M9 20.5l3-2 3 2"/>'], ['hot', 'Grzanie', '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/>'],
+  ['wet', 'Osusz.', '<path d="M12 3.2c3.4 4.1 6 7.4 6 10.6a6 6 0 0 1-12 0c0-3.2 2.6-6.5 6-10.6z"/>'], ['wind', 'Went.', '<path d="M3 8.5h11.5a3 3 0 1 0-3-3"/><path d="M3 12.5h16a3 3 0 1 1-3 3"/><path d="M3 16.5h7"/>'], ['auto', 'Auto', '<path d="M6.5 18.5 11 5.5h2l4.5 13"/><path d="M8.3 13.8h7.4"/>']];
+let mode = 'hot', on = true;
+function modes() {
+  $('modes').innerHTML = MODES.map(([k, s, ic]) => `<button class="key${on && k === mode ? ' on' : ''}" data-m="${k}" title="${s}" aria-label="${s}"><svg viewBox="0 0 24 24">${ic}</svg></button>`).join('')
+    + `<button class="key${on ? ' on' : ''}" data-p title="${on ? 'Wyłącz' : 'Włącz'}" aria-label="Zasilanie"><svg viewBox="0 0 24 24"><path d="M12 3v8"/><path d="M6.4 6.6a8 8 0 1 0 11.2 0"/></svg></button>`;
+}
+$('modes').addEventListener('click', e => { const b = e.target.closest('.key'); if (!b) return; if (b.dataset.p !== undefined) on = !on; else { mode = b.dataset.m; on = true; } modes(); });
+modes();
+
+/* rolety: klawisz wciśnięty, dopóki „jedzie”; suwak lameli */
+let blT = 0, lam = 40;
+$('blinds').addEventListener('click', e => { const b = e.target.closest('[data-b]'); if (!b) return; clearTimeout(blT);
+  $('blinds').querySelectorAll('.key').forEach(k => k.classList.toggle('on', k === b && b.dataset.b !== 'stop'));
+  $('vB').textContent = {up: 'W górę…', down: 'W dół…', stop: 'Zatrzymane'}[b.dataset.b];
+  if (b.dataset.b !== 'stop') blT = setTimeout(() => { b.classList.remove('on'); $('vB').textContent = 'Lamele ' + lam + '%'; }, 2400); });
+(function () {
+  const fd = $('fader'); let h = ''; for (let i = 0; i <= 10; i++) { const y = `calc(26px + (100% - 52px) * ${i / 10} - 1px)`; h += `<i class="tk" data-v="${100 - i * 10}" style="top:${y}"></i><i class="tk r" data-v="${100 - i * 10}" style="top:${y}"></i>`; }
+  fd.insertAdjacentHTML('afterbegin', h);
+  const show = () => { $('fcap').style.top = `calc(26px + (100% - 52px) * ${(100 - lam) / 100})`; $('fglow').style.height = lam + '%'; $('vB').textContent = 'Lamele ' + lam + '%'; };
+  const val = e => { const r = fd.querySelector('.slot').getBoundingClientRect(); return Math.round(Math.min(1, Math.max(0, (r.bottom - e.clientY) / r.height)) * 20) * 5; };
+  fd.addEventListener('pointerdown', e => { fd.setPointerCapture(e.pointerId); fd.classList.add('drag'); lam = val(e); show(); });
+  fd.addEventListener('pointermove', e => { if (fd.hasPointerCapture(e.pointerId)) { lam = val(e); show(); } });
+  fd.addEventListener('pointerup', () => fd.classList.remove('drag'));
+  fd.addEventListener('wheel', e => { e.preventDefault(); lam = Math.min(100, Math.max(0, lam + (e.deltaY < 0 ? 5 : -5))); show(); }, {passive: false});
+  show();
+})();
+/* wahanie: przełączniki z diodą */
+$('swing').addEventListener('click', e => { const b = e.target.closest('.key'); if (b) b.classList.toggle('on'); });
+</script>
+</body>
+</html>

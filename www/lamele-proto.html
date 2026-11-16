@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prototyp: lamele 3D</title>
+<style>
+  @font-face { font-family: Outfit; font-weight: 100 900; src: url(fonts/outfit-latin-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+1E00-1E9F; }
+  @font-face { font-family: Outfit; font-weight: 100 900; src: url(fonts/outfit-latin.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
+  :root { --bg:#000; --panel:#1c1c1c; --surface-2:#2a2a2a; --line:#2a2a2a; --text:#fff; --muted:#a3a3a3; --accent:#dfff2f; --secondary:#cdd3c2; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.4 Outfit, system-ui, sans-serif; padding: 32px; }
+  h1 { font-size: 22px; font-weight: 500; margin: 0 0 4px; }
+  p { color: var(--muted); margin: 0 0 28px; max-width: 720px; font-size: 13px; }
+  .row { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .card { background: var(--panel); border-radius: 28px; padding: 22px 24px 24px; }
+  .card h2 { font-size: 15px; font-weight: 600; margin: 0; }
+  .card .sub { color: var(--muted); font-size: 12px; margin: 2px 0 18px; min-height: 34px; }
+  .view { display: flex; gap: 16px; align-items: stretch; justify-content: center; height: 230px; }
+  .ctl { margin-top: 28px; display: grid; grid-template-columns: 90px 1fr 48px; gap: 10px 14px; align-items: center; max-width: 520px; font-size: 13px; }
+  .ctl span { color: var(--muted); } .ctl b { font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; }
+  input[type=range] { width: 100%; accent-color: var(--secondary); }
+
+  /* wspólne: okno */
+  .win { position: relative; width: 150px; height: 100%; border-radius: 20px; background: var(--surface-2); overflow: hidden; }
+
+  /* A: front 3D – każda lamela to pasek obracany wokół osi poziomej */
+  .a .stack { position: absolute; inset: 0; perspective: 520px; perspective-origin: 50% 42%; }
+  .a .slat { position: absolute; left: 6px; right: 6px; height: var(--sh); border-radius: 2px; transform-origin: 50% 50%;
+    transform: rotateX(var(--ang)); background: linear-gradient(180deg, var(--c1), var(--c2)); box-shadow: 0 var(--shd) 3px rgb(0 0 0 / .35); transition: top .25s, transform .2s, background .2s; backface-visibility: visible; }
+  .a .rail { position: absolute; left: 0; right: 0; height: 5px; background: var(--secondary); border-radius: 3px; transition: top .25s; }
+
+  /* B: przekrój z boku – lamele widziane od krawędzi */
+  .b .side { position: relative; width: 74px; height: 100%; border-radius: 20px; background: var(--surface-2); overflow: hidden; }
+  .b .side::before { content: ''; position: absolute; left: 14px; top: 0; bottom: 0; width: 1px; background: #3a3a3a; }   /* szyba */
+  .b .edge { position: absolute; left: 50%; width: 30px; height: 3px; margin-left: -12px; border-radius: 2px; background: #f2f2f2; transform: rotate(var(--ang)); transition: top .25s, transform .2s; }
+  .b .lab { position: absolute; bottom: 8px; font-size: 10px; color: #6f6f6f; }
+  .b .lab.l { left: 8px; } .b .lab.r { right: 8px; }
+
+  /* C: A + B razem */
+  .c .view { gap: 12px; }
+  .ray { position: absolute; left: 14px; right: 0; height: 1px; background: linear-gradient(90deg, rgb(223 255 47 / .0), rgb(223 255 47 / .55)); transform-origin: 0 50%; opacity: var(--ro); transition: opacity .2s; }
+</style></head><body>
+<h1>Prototyp: lamele w 3D</h1>
+<p>Trzy warianty pokazania faktycznego kąta lameli. Przesuń suwaki. Lamele 0% to zamknięte (pionowo), 100% to otwarte (poziomo). Nic stąd nie steruje roletami, to tylko makieta.</p>
+<div class="row">
+  <div class="card a"><h2>A. Widok od frontu, 3D</h2><div class="sub">Lamele obracają się w perspektywie. Widać prześwit i światło na krawędziach.</div>
+    <div class="view"><div class="win"><div class="stack" data-front></div></div></div></div>
+  <div class="card b"><h2>B. Przekrój z boku</h2><div class="sub">Lamele widziane od krawędzi, jak na rysunku technicznym. Kąt czytelny wprost.</div>
+    <div class="view"><div class="side" data-side><span class="lab l">szyba</span><span class="lab r">pokój</span></div></div></div>
+  <div class="card c"><h2>C. Front + przekrój</h2><div class="sub">Duży widok od frontu, obok wąski przekrój pokazujący kąt i to, ile światła wpada.</div>
+    <div class="view"><div class="win a"><div class="stack" data-front></div></div><div class="b" style="display:flex"><div class="side" data-side data-rays></div></div></div></div>
+</div>
+<div class="ctl">
+  <span>Wysokość</span><input type="range" id="h" min="0" max="100" step="5" value="0"><b id="hv"></b>
+  <span>Lamele</span><input type="range" id="l" min="0" max="100" step="5" value="60"><b id="lv"></b>
+</div>
+<script>
+const N = 18, H = 230;                      // liczba lamel, wysokość okna
+const fronts = [...document.querySelectorAll('[data-front]')], sides = [...document.querySelectorAll('[data-side]')];
+for (const f of fronts) { for (let i = 0; i < N; i++) { const s = document.createElement('div'); s.className = 'slat'; f.append(s); } const r = document.createElement('div'); r.className = 'rail'; f.append(r); }
+for (const s of sides) { for (let i = 0; i < N; i++) { const e = document.createElement('div'); e.className = 'edge'; s.append(e); if (s.dataset.rays !== undefined) { const r = document.createElement('div'); r.className = 'ray'; s.append(r); } } }
+function draw() {
+  const level = +h.value, lam = +l.value;   // level: 0 zamknięta (opuszczona), 100 otwarta (podniesiona)
+  hv.textContent = level + '%'; lv.textContent = lam + '%';
+  const down = (100 - level) / 100;         // jaka część okna jest zasłonięta
+  const pitch = (H - 10) / N;               // rozstaw lamel przy pełnym opuszczeniu
+  const ang = lam / 100 * 82;               // 0° = lamela pionowo (zamknięta), 82° = prawie poziomo
+  const sh = pitch + 2;                     // wysokość lameli (lekko zachodzą na siebie)
+  for (const f of fronts) {
+    const slats = f.querySelectorAll('.slat');
+    slats.forEach((s, i) => {
+      // opuszczone lamele wiszą w rozstawie od góry, reszta leży w pakiecie tuż nad dolną listwą
+      const shown = Math.ceil(down * N), packed = i >= shown;
+      s.style.top = (packed ? 4 + shown * pitch + (i - shown) * 1.5 : 4 + i * pitch) + 'px';
+      s.style.setProperty('--sh', (packed ? 2 : sh) + 'px');
+      s.style.setProperty('--ang', (packed ? 80 : ang) + 'deg');
+      const lit = 96 - lam * .2, dark = 78 - lam * .34;
+      s.style.setProperty('--c1', `hsl(80 6% ${lit}%)`); s.style.setProperty('--c2', `hsl(80 5% ${dark}%)`);
+      s.style.setProperty('--shd', (1 + lam / 40) + 'px');
+      s.style.zIndex = packed ? 1 : 2;
+    });
+    { const shown = Math.ceil(down * N); f.querySelector('.rail').style.top = (4 + shown * pitch + (N - shown) * 1.5) + 'px'; }
+  }
+  for (const sd of sides) {
+    const edges = sd.querySelectorAll('.edge'), rays = sd.querySelectorAll('.ray'), shown = Math.ceil(down * N);
+    edges.forEach((e, i) => {
+      const packed = i >= shown;
+      e.style.top = (packed ? 8 + shown * pitch + (i - shown) * 2 : 8 + i * pitch) + 'px';
+      e.style.setProperty('--ang', (packed ? 0 : -(90 - ang)) + 'deg');     // pionowo = zamknięte
+      if (packed) e.style.width = '18px'; else e.style.width = '';
+    });
+    rays.forEach((r, i) => { r.style.top = (8 + i * pitch + pitch / 2) + 'px'; r.style.setProperty('--ro', i < shown ? Math.max(0, (lam - 10) / 90) : 0); });
+  }
+}
+h.oninput = l.oninput = draw; draw();
+</script>
+</body></html>

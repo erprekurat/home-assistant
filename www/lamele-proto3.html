@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prototyp: lamele 3D</title>
+<style>
+  @font-face { font-family: Outfit; font-weight: 100 900; src: url(fonts/outfit-latin-ext.woff2) format('woff2'); unicode-range: U+0100-02BA, U+1E00-1E9F; }
+  @font-face { font-family: Outfit; font-weight: 100 900; src: url(fonts/outfit-latin.woff2) format('woff2'); unicode-range: U+0000-00FF, U+2000-206F; }
+  :root { --bg:#000; --panel:#1c1c1c; --surface-2:#2a2a2a; --line:#2a2a2a; --text:#fff; --muted:#a3a3a3; --accent:#dfff2f; --secondary:#cdd3c2; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.4 Outfit, system-ui, sans-serif; padding: 32px; }
+  h1 { font-size: 22px; font-weight: 500; margin: 0 0 4px; }
+  p { color: var(--muted); margin: 0 0 28px; max-width: 720px; font-size: 13px; }
+  .row { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .card { background: var(--panel); border-radius: 28px; padding: 22px 24px 24px; }
+  .card h2 { font-size: 15px; font-weight: 600; margin: 0; }
+  .card .sub { color: var(--muted); font-size: 12px; margin: 2px 0 18px; min-height: 34px; }
+  .view { display: flex; gap: 16px; align-items: stretch; justify-content: center; height: 230px; }
+  .ctl { margin-top: 28px; display: grid; grid-template-columns: 90px 1fr 48px; gap: 10px 14px; align-items: center; max-width: 520px; font-size: 13px; }
+  .ctl span { color: var(--muted); } .ctl b { font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; }
+  input[type=range] { width: 100%; accent-color: var(--secondary); }
+
+  /* wspólne: okno */
+  .win { position: relative; width: 150px; height: 100%; border-radius: 20px; background: var(--surface-2); overflow: hidden; }
+  .win svg { display: block; }
+
+  /* A: front 3D – każda lamela to pasek obracany wokół osi poziomej */
+  .a .stack { position: absolute; inset: 0; perspective: 520px; perspective-origin: 50% 42%; }
+  .a .slat { position: absolute; left: 6px; right: 6px; height: var(--sh); border-radius: 2px; transform-origin: 50% 50%;
+    transform: rotateX(var(--ang)); background: linear-gradient(180deg, var(--c1), var(--c2)); box-shadow: 0 var(--shd) 3px rgb(0 0 0 / .35); transition: top .25s, transform .2s, background .2s; backface-visibility: visible; }
+  .a .rail { position: absolute; left: 0; right: 0; height: 5px; background: var(--secondary); border-radius: 3px; transition: top .25s; }
+
+  /* B: przekrój z boku – lamele widziane od krawędzi */
+  .b .side { position: relative; width: 74px; height: 100%; border-radius: 20px; background: var(--surface-2); overflow: hidden; }
+  .b .side::before { content: ''; position: absolute; left: 14px; top: 0; bottom: 0; width: 1px; background: #3a3a3a; }   /* szyba */
+  .b .edge { position: absolute; left: 50%; width: 30px; height: 3px; margin-left: -12px; border-radius: 2px; background: #f2f2f2; transform: rotate(var(--ang)); transition: top .25s, transform .2s; }
+  .b .lab { position: absolute; bottom: 8px; font-size: 10px; color: #6f6f6f; }
+  .b .lab.l { left: 8px; } .b .lab.r { right: 8px; }
+
+  /* C: A + B razem */
+  .c .view { gap: 12px; }
+  .ray { position: absolute; left: 14px; right: 0; height: 1px; background: linear-gradient(90deg, rgb(223 255 47 / .0), rgb(223 255 47 / .55)); transform-origin: 0 50%; opacity: var(--ro); transition: opacity .2s; }
+</style></head><body>
+<h1>Prototyp: lamele w 3D</h1>
+<p>Trzy warianty pokazania faktycznego kąta lameli. Przesuń suwaki. Lamele 0% to zamknięte (pionowo), 100% to otwarte (poziomo). Nic stąd nie steruje roletami, to tylko makieta.</p>
+<div class="row">
+  <div class="card a"><h2>A. Widok od frontu, 3D</h2><div class="sub">Rzut perspektywiczny liczony z geometrii. Lamela wisi na górnej krawędzi, przy zamykaniu jej przód opada.</div>
+    <div class="view"><div class="win"><svg data-front viewBox="0 0 150 230" width="150" height="230"></svg></div></div></div>
+  <div class="card b"><h2>B. Przekrój z boku</h2><div class="sub">Lamele widziane od krawędzi, jak na rysunku technicznym. Kąt czytelny wprost.</div>
+    <div class="view"><div class="side" data-side><span class="lab l">szyba</span><span class="lab r">pokój</span></div></div></div>
+  <div class="card c"><h2>C. Front + przekrój</h2><div class="sub">Duży widok od frontu, obok wąski przekrój pokazujący kąt i to, ile światła wpada.</div>
+    <div class="view"><div class="win a"><svg data-front viewBox="0 0 150 230" width="150" height="230"></svg></div><div class="b" style="display:flex"><div class="side" data-side data-rays></div></div></div></div>
+</div>
+<div class="ctl">
+  <span>Wysokość</span><input type="range" id="h" min="0" max="100" step="5" value="0"><b id="hv"></b>
+  <span>Lamele</span><input type="range" id="l" min="0" max="100" step="5" value="60"><b id="lv"></b>
+</div>
+<script>
+const N = 18, H = 230;                      // liczba lamel, wysokość okna
+const fronts = [...document.querySelectorAll('[data-front]')], sides = [...document.querySelectorAll('[data-side]')];
+for (const s of sides) { for (let i = 0; i < N; i++) { const e = document.createElement('div'); e.className = 'edge'; s.append(e); if (s.dataset.rays !== undefined) { const r = document.createElement('div'); r.className = 'ray'; s.append(r); } } }
+
+/* Widok od frontu liczony geometrycznie (rzut perspektywiczny), bez sztuczek CSS.
+   Lamela wisi na górnej (tylnej) krawędzi przy szybie; przy zamykaniu jej przednia krawędź opada w dół.
+   theta: 0° = zamknięta (pionowo w dół), ~80° = otwarta (poziomo, w stronę pokoju). */
+function frontSvg(level, lam) {
+  const W = 150, Hh = 230, pad = 7, n = N, pitch = (Hh - 14) / n, w = pitch * 1.18;      // w: szerokość lameli (lekko zachodzą)
+  const d = 300, eye = Hh * 0.46, cx = W / 2, half = W / 2 - pad;                         // oko: 300 px przed oknem, trochę powyżej środka
+  const shown = Math.ceil((100 - level) / 100 * n), th = lam / 100 * 80 * Math.PI / 180;
+  const proj = (y, z) => { const k = d / (d - z); return [eye + (y - eye) * k, k]; };
+  let out = `<rect width="${W}" height="${Hh}" fill="hsl(80 4% ${17 + lam * .09}%)"/>`;    // za lamelami: im bardziej otwarte, tym jaśniej
+  const parts = [];
+  for (let i = 0; i < n; i++) {
+    const packed = i >= shown;
+    const y0 = packed ? 6 + shown * pitch + (i - shown) * 1.6 : 6 + i * pitch;            // górna krawędź (zawias)
+    const t = packed ? 86 * Math.PI / 180 : th, ww = packed ? w * .9 : w;
+    const [yn, k] = proj(y0 + ww * Math.cos(t), ww * Math.sin(t));                        // przednia krawędź po rzucie
+    const [yf] = proj(y0, 0);
+    const xl = cx - half, xr = cx + half, xln = cx - half * k, xrn = cx + half * k;
+    const topSide = yn >= yf;                                                             // widzimy wierzch (poniżej oka) czy spód (powyżej oka)
+    const face = topSide ? 62 + 32 * Math.cos(t) + 6 * Math.sin(t) : 34 + 22 * Math.cos(t);
+    parts.push(`<polygon points="${xl},${yf.toFixed(1)} ${xr},${yf.toFixed(1)} ${xrn.toFixed(1)},${yn.toFixed(1)} ${xln.toFixed(1)},${yn.toFixed(1)}" fill="hsl(80 5% ${face.toFixed(0)}%)"/>` +
+      `<line x1="${xln.toFixed(1)}" x2="${xrn.toFixed(1)}" y1="${yn.toFixed(1)}" y2="${yn.toFixed(1)}" stroke="hsl(80 8% ${topSide ? 97 : 70}%)" stroke-width="${(1.1 * k).toFixed(2)}"/>` +
+      (topSide ? `<line x1="${xln.toFixed(1)}" x2="${xrn.toFixed(1)}" y1="${(yn + 1.2).toFixed(1)}" y2="${(yn + 1.2).toFixed(1)}" stroke="rgb(0 0 0 / .28)" stroke-width="1.4"/>` : ''));
+  }
+  // malowanie: lamele poniżej oka od dołu do góry (wyższa zasłania niższą), powyżej oka odwrotnie
+  const idx = [...parts.keys()], above = idx.filter(i => 6 + i * pitch <= eye), below = idx.filter(i => 6 + i * pitch > eye).reverse(), order = [...above, ...below];
+  for (const i of order) out += parts[i];
+  const ry = 6 + shown * pitch + (n - shown) * 1.6 + 2;
+  out += `<rect x="${pad - 3}" y="${ry.toFixed(1)}" width="${W - 2 * pad + 6}" height="5" rx="2.5" fill="var(--secondary)"/>`;
+  return out;
+}
+function draw() {
+  const level = +h.value, lam = +l.value;   // level: 0 zamknięta (opuszczona), 100 otwarta (podniesiona)
+  hv.textContent = level + '%'; lv.textContent = lam + '%';
+  const down = (100 - level) / 100;         // jaka część okna jest zasłonięta
+  const pitch = (H - 10) / N;               // rozstaw lamel przy pełnym opuszczeniu
+  const ang = lam / 100 * 82;               // 0° = lamela pionowo (zamknięta), 82° = prawie poziomo
+  const sh = pitch + 2;                     // wysokość lameli (lekko zachodzą na siebie)
+  for (const f of fronts) f.innerHTML = frontSvg(level, lam);
+  for (const sd of sides) {
+    const edges = sd.querySelectorAll('.edge'), rays = sd.querySelectorAll('.ray'), shown = Math.ceil(down * N);
+    edges.forEach((e, i) => {
+      const packed = i >= shown;
+      e.style.top = (packed ? 8 + shown * pitch + (i - shown) * 2 : 8 + i * pitch) + 'px';
+      e.style.setProperty('--ang', (packed ? 0 : -(90 - ang)) + 'deg');     // pionowo = zamknięte
+      if (packed) e.style.width = '18px'; else e.style.width = '';
+    });
+    rays.forEach((r, i) => { r.style.top = (8 + i * pitch + pitch / 2) + 'px'; r.style.setProperty('--ro', i < shown ? Math.max(0, (lam - 10) / 90) : 0); });
+  }
+}
+h.oninput = l.oninput = draw; draw();
+</script>
+</body></html>

@@ -13,6 +13,8 @@
 *.jpg
 *.jpeg
 *.png
+!www/dom-icon-180.png
+!www/dom-icon-512.png
 *.ico
 **/model_cache/
 **/recordings/
@@ -47,6 +49,5 @@ frigate/config/go2rtc_homekit.yml
 **/.search_stats*
 **/.vacuum
 
-# Kod aplikacji do sprawdzenia przed publikacją
-/www/
+# Kod wymagający sprawdzenia przed publikacją
 /klima/ariston.go
